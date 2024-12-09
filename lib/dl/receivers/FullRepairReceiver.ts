@@ -8,6 +8,8 @@ import { LoggerUtil } from '../../util/LoggerUtil'
 import { IndexProcessor } from '../IndexProcessor'
 import { validateLocalFile } from '../../common/util/FileUtils'
 import { HTTPError, ParseError, ReadError, RequestError, TimeoutError } from 'got'
+import { relative } from 'path'
+import { minimatch } from 'minimatch'
 
 const log = LoggerUtil.getLogger('FullRepairReceiver')
 
@@ -20,6 +22,7 @@ export interface ValidateTransmission {
     commonDirectory: string
     instanceDirectory: string
     devMode: boolean
+    excludePatterns?: string[]
 }
 
 export interface DownloadTransmission {
@@ -133,12 +136,27 @@ export class FullRepairReceiver implements Receiver {
         // Validate
         let completedStages = 0
         for(const processor of this.processors) {
-            Object.values(await processor.validate(async () => {
+            const validatedAssets = Object.values(await processor.validate(async () => {
                 completedStages++
                 process.send!({ response: 'validateProgress', percent: Math.trunc((completedStages/numStages)*100) } as ValidateProgressReply)
             }))
                 .flatMap(asset => asset)
-                .forEach(asset => assets.push(asset))
+                .filter(asset => {
+                    // 제외 패턴이 있는 경우 파일 경로 검사
+                    if (message.excludePatterns && message.excludePatterns.length > 0) {
+                        const relativePath = relative(message.instanceDirectory, asset.path)
+                        const shouldExclude = message.excludePatterns.some(pattern => 
+                            minimatch(relativePath, pattern, { dot: true })
+                        )
+                        if (shouldExclude) {
+                            log.debug(`Excluding file from validation: ${relativePath}`)
+                            return false
+                        }
+                    }
+                    return true
+                })
+
+            validatedAssets.forEach(asset => assets.push(asset))
         }
 
         this.assets = assets

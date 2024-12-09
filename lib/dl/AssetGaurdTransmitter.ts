@@ -66,7 +66,8 @@ export class FullRepair extends BaseTransmitter {
         private instanceDirectory: string,
         private launcherDirectory: string,
         private serverId: string,
-        private devMode: boolean
+        private devMode: boolean,
+        private options: { excludePatterns?: string[] } = {}
     ) {
         super()
     }
@@ -100,16 +101,19 @@ export class FullRepair extends BaseTransmitter {
                 
             }
 
-            this.receiver.on('message', onMessageHandle)
-    
-            this.receiver.send({
+            const validateTransmission: ValidateTransmission = {
                 action: 'validate',
                 commonDirectory: this.commonDirectory,
                 instanceDirectory: this.instanceDirectory,
                 launcherDirectory: this.launcherDirectory,
                 serverId: this.serverId,
-                devMode: this.devMode
-            } as ValidateTransmission)
+                devMode: this.devMode,
+                excludePatterns: this.options.excludePatterns || []
+            }
+
+            this.receiver.on('message', onMessageHandle)
+    
+            this.receiver.send(validateTransmission)
         })
 
     }
