@@ -108,7 +108,7 @@ export class FullRepair extends BaseTransmitter {
                 launcherDirectory: this.launcherDirectory,
                 serverId: this.serverId,
                 devMode: this.devMode,
-                excludePatterns: this.options.excludePatterns || []
+                excludePatterns: this.options.excludePatterns || ['**/options.txt']
             }
 
             this.receiver.on('message', onMessageHandle)
